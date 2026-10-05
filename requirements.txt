@@ -1,0 +1,25 @@
+# PlantSense — Dependencies
+#
+# This is a Node.js (npm) project, so there is no Python requirements.txt.
+# All dependencies are pinned in `package.json` and locked in
+# `package-lock.json`. Install everything with:
+#
+#     npm install
+#
+# A `requirements.txt`-style listing is provided below for reference.
+#
+# ── Runtime dependencies ──────────────────────────────────────
+# react                 ^18.3.1     UI library
+# react-dom             ^18.3.1     React DOM renderer
+# recharts              ^2.12.7     Sensor history charts
+# lucide-react          ^0.400.0    Icon set
+#
+# ── Development dependencies ──────────────────────────────────
+# typescript            ^5.5.3      Type checking
+# vite                  ^5.3.4      Dev server & bundler
+# @vitejs/plugin-react  ^4.3.1      React fast-refresh for Vite
+# tailwindcss           ^3.4.4      Utility-first CSS
+# postcss               ^8.4.38     CSS processing
+# autoprefixer          ^10.4.19    Vendor prefixes for CSS
+# @types/react          ^18.3.3     React type definitions
+# @types/react-dom      ^18.3.0     React DOM type definitions
