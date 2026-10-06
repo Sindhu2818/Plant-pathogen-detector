@@ -95,7 +95,7 @@ The file `public/esp32_sensor_data.csv` is automatically imported into IndexedDB
 
 ## Historical Sensor Charts
 
-The dashboard features intelligent time-filtering and dynamic Y-axis scaling:
+The dashboard features intelligent time-filtering and dynamic Y axis scaling:
 
 ### Time-Range Selector
 
