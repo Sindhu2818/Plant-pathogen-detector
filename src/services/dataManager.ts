@@ -3,6 +3,12 @@ import { getReadingTime } from '../types';
 import { fetchCsvHistory, parseCsvText } from './csvData';
 import { fetchLatestFeed, fetchHistoricalFeeds } from './thingsboard';
 import * as store from './localDataStore';
+import {
+  saveDataset as dbSaveDataset,
+  getDataset as dbGetDataset,
+  deleteDataset as dbDeleteDataset,
+  normalizeToStoredDataset,
+} from '../db/datasetDB';
 
 /* ── Types ────────────────────────────────────────────────── */
 
@@ -23,19 +29,25 @@ const BUNDLED_DATASET_ID = 'bundled-historical';
  * on first use. Subsequent visits skip re-import.
  */
 async function ensureBundledCsv(): Promise<void> {
-  const existing = await store.getDataset(BUNDLED_DATASET_ID);
+  const existing = await dbGetDataset(BUNDLED_DATASET_ID);
   if (existing) return; // already imported
 
   try {
     const readings = await fetchCsvHistory();
     if (readings.length === 0) return;
 
+    // Save as StoredDataset in SmartFarmingDB
+    const dataset = normalizeToStoredDataset('Bundled Historical Experiment', readings);
+    dataset.id = BUNDLED_DATASET_ID;
+    await dbSaveDataset(dataset);
+
+    // Also save in store for legacy compatibility
     const firstTimeMs = readings[0].timeMs;
     const lastTimeMs = readings[readings.length - 1].timeMs;
 
     await store.saveDataset({
       id: BUNDLED_DATASET_ID,
-      name: 'Bundled Historical CSV',
+      name: 'Bundled Historical Experiment',
       source: 'bundled',
       readingCount: readings.length,
       firstTimeMs,
@@ -200,7 +212,7 @@ export async function importCsvFile(
     });
   });
 
-  // Save dataset metadata
+  // Save dataset metadata to localDataStore
   await store.saveDataset({
     id: datasetId,
     name: options.datasetName || file.name.replace(/\.csv$/i, ''),
@@ -211,6 +223,14 @@ export async function importCsvFile(
     importedAt: new Date().toISOString(),
     experimentStartTime: options.experimentStartTime?.toISOString(),
   });
+
+  // Also save complete normalized dataset to SmartFarmingDB
+  const storedDataset = normalizeToStoredDataset(
+    options.datasetName || file.name.replace(/\.csv$/i, ''),
+    readings,
+  );
+  storedDataset.id = datasetId;
+  await dbSaveDataset(storedDataset);
 
   const msg = `Successfully imported ${readings.length.toLocaleString()} readings.${
     errors.length > 0 ? ` ${errors.length} rows had parse warnings.` : ''
@@ -223,7 +243,10 @@ export async function importCsvFile(
 /* ── Dataset management ───────────────────────────────────── */
 
 export async function deleteDataset(id: string): Promise<void> {
-  await store.deleteDataset(id);
+  await Promise.all([
+    store.deleteDataset(id),
+    dbDeleteDataset(id),
+  ]);
 }
 
 export async function listDatasets(): Promise<DatasetInfo[]> {

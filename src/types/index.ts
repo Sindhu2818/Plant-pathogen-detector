@@ -61,6 +61,8 @@ export interface ImportOptions {
   forceImport?: boolean;
 }
 
+export type { StoredDataset, StoredDatasetRow } from '../db/datasetDB';
+
 export type TimeRangeKey = '1H' | '3H' | '6H' | '12H' | '24H' | '3D' | 'ALL';
 
 /** Extract numeric time in ms from reading (using timestamp or timeMs). */
