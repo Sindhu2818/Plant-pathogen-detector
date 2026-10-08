@@ -161,112 +161,53 @@ const unsigned long LOG_INTERVAL = 10000; // 10 seconds per reading
 
 Open the Serial Monitor at **115200 baud** (with `Newline` or `Both NL & CR`). Send any of the following commands:
 
-| Command | Action | Output Description |
-| :--- | :--- | :--- |
-| `DOWNLOAD` | Dump CSV Log | Streams the complete `/sensor_data.csv` between `=== BEGIN SENSOR DATA ===` and `=== END SENSOR DATA ===`. Copy/paste directly into a `.csv` file. |
-| `COUNT` | Count Stored Records | Prints the total number of valid rows stored in LittleFS flash. |
-| `STATUS` | System Health | Shows file size in bytes, logging frequency, and flash memory status. |
-| `CLEAR` | Format Flash Log | Erases `/sensor_data.csv`, re-creates the standard CSV header, and resets storage. |
+| Info | Example |
+|------|---------|
+| Name | Historical Experiment |
+| Readings | 23,238 |
+| Source | CSV / Bundled / ThingsBoard |
+| Time Range | Day 1 → Day 3 |
+| Imported | Oct 5, 2026 |
 
----
+Datasets can be deleted individually. Deleting a CSV dataset does not affect ThingsBoard data.
 
-### How to Flash the ESP32
+## CSV Export
 
-1. **Install ESP32 Board Core**:
-   - In Arduino IDE, open **File → Preferences**.
-   - Add to *Additional Boards Manager URLs*:
-     ```text
-     https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-     ```
-   - Go to **Tools → Board → Boards Manager**, search for `esp32`, and install **esp32 by Espressif Systems**.
-2. **Select Board & Port**:
-   - **Board**: `ESP32 Dev Module` (or your specific ESP32 variant)
-   - **Flash Size**: `4MB (32Mb)`
-   - **Partition Scheme**: `Default 4MB with spiffs (1.2MB APP / 1.5MB SPIFFS)` or `Minimal SPIFFS` (both allocate flash for LittleFS)
-   - **Upload Speed**: `921600` or `115200`
-   - **Port**: Select the COM port corresponding to your connected ESP32
-3. **Upload**:
-   - Click the **Upload** (`→`) button.
-   - If your board requires it, hold down the `BOOT` button on the ESP32 until uploading begins.
-4. **Verify**:
-   - Open **Serial Monitor** at **115200 baud**.
-   - Confirm all sensors initialize:
-     ```text
-     ==========================================
-      ESP32 MULTI SENSOR DATA LOGGER
-     ==========================================
-     LittleFS initialized.
-     I2C initialized.
-     DHT22 initialized.
-     DS18B20 initialized. Devices found: 1
-     SGP30 detected.
-     BH1750 detected.
-     ```
+Click **Export CSV** to download the combined dataset from all sources in the original ESP32 CSV format:
 
----
-
-## 💻 Part 2: PlantSense Web Dashboard
-
-The web dashboard is a modern, responsive single-page application built with **React 18**, **Vite**, **TypeScript**, **Tailwind CSS**, and **Recharts**.
-
-🌐 **Live Deployed App:** [https://spidey-farmers.vercel.app/](https://spidey-farmers.vercel.app/)
-
-### Dashboard Capabilities
-
-- **Unified Data View**: Merges live ThingsBoard MQTT feeds, manually uploaded CSV files, and bundled historical datasets into one synchronized stream.
-- **Client-Side IndexedDB Storage**: Uses `idb` to store **23,000+ sensor records** directly in the browser. Survives page reloads without requiring a backend database.
-- **Dynamic Y-Axis Scaling**:
-  - Automatically zooms each sensor's Y-axis to fit the observed data range.
-  - Adds **8% visual padding** above and below the min/max values.
-  - Edge-case protection: handles constant values (e.g. constant CO₂=400), clamps percentage sensors (Humidity and Soil Moisture between 0%–100%), and preserves 3 decimal places for small voltages (MQ-2).
-- **Time-Range Selector**: Filter historical data by:
-  - `[ 1H ]` Last 1 Hour
-  - `[ 3H ]` Last 3 Hours *(Default)*
-  - `[ 6H ]` Last 6 Hours
-  - `[ 12H ]` Last 12 Hours
-  - `[ 24H ]` Last 24 Hours
-  - `[ 3D ]` Last 3 Days
-  - `[ ALL ]` Complete historical experiment
-- **Timestamp Integrity**: Filters against true elapsed `Time_ms` or user-defined experiment start timestamps. Never substitutes upload time for actual collection timestamps.
-- **Duplicate Detection**: Automatically fingerprints CSV imports (`readingCount`, `firstTimeMs`, `lastTimeMs`) to prevent accidental duplication.
-- **Combined CSV Export**: Download the unified dataset with standard ESP32 column headers with a single click.
-
----
-
-### How to Run the Dashboard Locally
-
-#### Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **npm**: v9.0.0 or higher
-
-#### 1. Clone & Navigate
-```powershell
-git clone https://github.com/your-username/Plant-pathogen-detector.git
-cd Plant-pathogen-detector
+```
+Time_ms,DHT22_Temperature_C,DHT22_Humidity_percent,...
 ```
 
-#### 2. Install Dependencies
-```powershell
-npm install
-```
+## Bundled Historical CSV
 
-#### 3. Run Development Server
-```powershell
-npm run dev
-```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+The file `public/esp32_sensor_data.csv` is automatically imported into IndexedDB on first load and labeled as "Bundled Historical CSV". It does not need to be manually imported.
 
-#### 4. Build for Production
-```powershell
-npm run build
-```
-The compiled, minified bundle will be in the `dist/` directory.
+## Historical Sensor Charts
 
----
+The dashboard features intelligent time-filtering and dynamic Y-axis scaling:
 
-### Environment Variables
+### Time-Range Selector
 
-Configure connection settings by editing `.env` (or copying from `.env.example`):
+Choose from:
+- `1H` (Last 1 Hour)
+- `3H` (Last 3 Hours — default view)
+- `6H` (Last 6 Hours)
+- `12H` (Last 12 Hours)
+- `24H` (Last 24 Hours)
+- `3D` (Last 3 Days)
+- `ALL` (All available data)
+
+The reference point is the newest timestamp in the dataset. If the dataset spans less time than the selected range, all available data is automatically shown rather than displaying an empty chart.
+
+### Dynamic Y-Axis Scaling
+
+- **No forced zero**: Rather than forcing every Y-axis to start at 0, the chart dynamically computes the observed minimum and maximum for the active sensor in the selected time window and applies ~8% visual padding.
+- **Independent per sensor**: Each of the 10 sensors maintains its own scaling, precision, and physical constraints (e.g. humidity and soil moisture cannot exceed 100% or drop below 0%; MQ-2 voltage preserves 3 decimal places; constant values maintain a sensible non-zero range).
+- **Recalculation**: Y-axis scale automatically recalibrates when changing time ranges, switching sensors, or importing new data.
+- **Performance**: Raw readings in IndexedDB are never altered; downsampling is applied solely at the SVG rendering layer for smooth 60 FPS performance across 23,000+ points.
+
+## Environment Variables
 
 ```env
 # ThingsBoard Server URL (Local or Cloud instance)
